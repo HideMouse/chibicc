@@ -43,8 +43,11 @@ test-stage2: $(TESTS:test/%=stage2/test/%)
 
 # Misc.
 
-clean:
-	rm -rf chibicc tmp* $(TESTS) test/*.s test/*.exe stage2
-	find * -type f '(' -name '*~' -o -name '*.o' ')' -exec rm {} ';'
+hello:
+	@./chibicc hello.cbc -o hello.asm
 
-.PHONY: test clean test-stage2
+clean:
+	@rm -rf chibicc tmp* $(TESTS) test/*.s test/*.exe stage2
+	@find * -type f '(' -name '*~' -o -name '*.o' ')' -exec rm {} ';'
+
+.PHONY: test clean test-stage2 hello

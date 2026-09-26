@@ -19,7 +19,31 @@ static StringArray std_include_paths;
 char *base_file;
 
 static void usage(int status) {
-  fprintf(stderr, "chibicc [ -o <path> ] <file>\n");
+  fprintf(status == 0 ? stdout : stderr,
+    "Usage: chibicc [opts] <file>\n"
+    "\n"
+    "Options:\n"
+    "  -E                    Only preprocess\n"
+    "  -I <dir>              Set include path (optional space)\n"
+    "  -D <macro>[=<value>]  Define macro (optional space)\n"
+    "  -U <macro>            Undefine macro (optional space)\n"
+    "  -include <file>       Include file\n"
+    "  -idirafter <dir>      Append header path\n"
+    "\n"
+    "  -M                    Gen dependence\n"
+    "  -MF <file>            Set dependence output file\n"
+    "  -MP                   Gen pseudo dependence\n"
+    "  -MT <target>          Set dependence target\n"
+    "  -MD                   Gen dependence with compile\n"
+    "  -MQ <target>          Set dependence target (Make)\n"
+    "  -MMD                  Gen dependence with compile, ignore system header\n"
+    "\n"
+    "  -fcommon, -fno-common Uninit variable in/not in section .common (default is in)\n"
+    "  -fpic, -fPIC          Gen PIC code\n"
+    "\n"
+    "  -o <file>             Set output file (for -o and -E) (optional space)\n"
+    "  --help, --h           Show this help\n"
+  );
   exit(status);
 }
 
@@ -96,7 +120,7 @@ static void parse_args(int argc, char **argv) {
   StringArray idirafter = {};
 
   for (int i = 1; i < argc; i++) {
-    if (!strcmp(argv[i], "--help"))
+    if (!strcmp(argv[i], "--help") || !strcmp(argv[i], "--h"))
       usage(0);
 
     if (!strcmp(argv[i], "-o")) {
@@ -121,6 +145,11 @@ static void parse_args(int argc, char **argv) {
 
     if (!strcmp(argv[i], "-E")) {
       opt_E = true;
+      continue;
+    }
+
+    if (!strcmp(argv[i], "-I")) {
+      strarray_push(&include_paths, argv[++i]);
       continue;
     }
 
@@ -205,10 +234,10 @@ static void parse_args(int argc, char **argv) {
       continue;
     }
 
-    if (!strcmp(argv[i], "-hashmap-test")) {
-      hashmap_test();
-      exit(0);
-    }
+    // if (!strcmp(argv[i], "-hashmap-test")) {
+    //   hashmap_test();
+    //   exit(0);
+    // }
 
     // These options are ignored for now.
     // if (!strncmp(argv[i], "-O", 2) ||
@@ -242,7 +271,7 @@ static void parse_args(int argc, char **argv) {
 }
 
 static FILE *open_file(char *path) {
-  if (!path || strcmp(path, "-") == 0)
+  if (!path)
     return stdout;
 
   FILE *out = fopen(path, "w");
@@ -262,7 +291,7 @@ static char *replace_extn(char *tmpl, char *extn) {
 
 // Print tokens to stdout. Used for -E.
 static void print_tokens(Token *tok) {
-  FILE *out = open_file(output_file ? output_file : "-");
+  FILE *out = open_file(output_file);
 
   int line = 1;
   for (; tok->kind != TK_EOF; tok = tok->next) {
@@ -290,15 +319,13 @@ static bool in_std_include_path(char *path) {
 // stdout in a format that "make" command can read. This feature is
 // used to automate file dependency management.
 static void print_dependencies(void) {
-  char *path;
+  char *path = NULL;
   if (opt_MF)
     path = opt_MF;
   else if (opt_MD)
     path = replace_extn(output_file ? output_file : base_file, ".d");
   else if (output_file)
     path = output_file;
-  else
-    path = "-";
 
   FILE *out = open_file(path);
   if (opt_MT)
@@ -405,6 +432,9 @@ bool file_exists(char *path) {
 }
 
 int main(int argc, char **argv) {
+  if (argc < 2)
+    usage(0);
+
   init_macros();
   parse_args(argc, argv);
 
