@@ -1,53 +1,29 @@
-CFLAGS=-std=c11 -g -fno-common -Wall -Wno-switch
+CFLAGS=-std=c11 -g -fno-common -Wall -Wno-switch -Isrc
 
-SRCS=$(wildcard *.c)
-OBJS=$(SRCS:.c=.o)
+SRCS=$(wildcard ./src/*.c)
+OBJS=$(patsubst ./src/%.c, ./build/%.o, $(SRCS))
 
-TEST_SRCS=$(wildcard test/*.c)
-TESTS=$(TEST_SRCS:.c=.exe)
-
-# Stage 1
+# Compile Chibicc
 
 chibicc: $(OBJS)
-	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+	@$(CC) $(CFLAGS) -o $@ $^
 
-$(OBJS): chibicc.h
+./build/%.o: ./src/%.c ./src/chibicc.h
+	@$(CC) $(CFLAGS) -c -o $@ $<
 
-test/%.exe: chibicc test/%.c
-	./chibicc -Iinclude -Itest -c -o test/$*.o test/$*.c
-	$(CC) -pthread -o $@ test/$*.o -xc test/common
+# Hello :)
 
-test: $(TESTS)
-	for i in $^; do echo $$i; ./$$i || exit 1; echo; done
-	test/driver.sh ./chibicc
-
-test-all: test test-stage2
-
-# Stage 2
-
-stage2/chibicc: $(OBJS:%=stage2/%)
-	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
-
-stage2/%.o: chibicc %.c
-	mkdir -p stage2/test
-	./chibicc -c -o $(@D)/$*.o $*.c
-
-stage2/test/%.exe: stage2/chibicc test/%.c
-	mkdir -p stage2/test
-	./stage2/chibicc -Iinclude -Itest -c -o stage2/test/$*.o test/$*.c
-	$(CC) -pthread -o $@ stage2/test/$*.o -xc test/common
-
-test-stage2: $(TESTS:test/%=stage2/test/%)
-	for i in $^; do echo $$i; ./$$i || exit 1; echo; done
-	test/driver.sh ./stage2/chibicc
+hello: hello.c chibicc
+	./chibicc -Iinclude -as=gas  $< -o ./build/hello/hello.asm
+	./chibicc -Iinclude -as=nasm $< -o ./build/hello/hello.nasm
+	as ./build/hello/hello.asm -o ./build/hello/hello-gas.o
+	nasm -f elf64 ./build/hello/hello.nasm -o ./build/hello/hello-nasm.o
+	gcc ./build/hello/hello-gas.o -o hello-gas
+	gcc ./build/hello/hello-nasm.o -o hello-nasm
 
 # Misc.
 
-hello:
-	@./chibicc hello.cbc -o hello.asm
-
 clean:
-	@rm -rf chibicc tmp* $(TESTS) test/*.s test/*.exe stage2
-	@find * -type f '(' -name '*~' -o -name '*.o' ')' -exec rm {} ';'
+	@rm -f build/*.o build/hello/hello* chibicc hello-*
 
-.PHONY: test clean test-stage2 hello
+.PHONY: clean hello

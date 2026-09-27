@@ -3,10 +3,8 @@
 **/*.o
 **/*.s
 **/a.out
-/tmp*
-/thirdparty
 /chibicc
 /test/*.exe
-/stage2
+/build
 
-hello.*
+hello*

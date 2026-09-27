@@ -404,8 +404,15 @@ void add_type(Node *node);
 // codegen.c
 //
 
+typedef enum {
+  AS_GAS,
+  AS_NASM,
+} AsmrKind;
+
 void codegen(Obj *prog, FILE *out);
 int align_to(int n, int align);
+
+void cdg_nasm(Obj *prog, FILE *out);
 
 //
 // unicode.c
@@ -451,3 +458,4 @@ extern StringArray include_paths;
 extern bool opt_fpic;
 extern bool opt_fcommon;
 extern char *base_file;
+extern AsmrKind opt_as;

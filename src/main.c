@@ -3,6 +3,7 @@
 StringArray include_paths;
 bool opt_fcommon = true;
 bool opt_fpic;
+AsmrKind opt_as = AS_GAS;
 
 static StringArray opt_include;
 static bool opt_E;
@@ -42,6 +43,7 @@ static void usage(int status) {
     "  -fpic, -fPIC          Gen PIC code\n"
     "\n"
     "  -o <file>             Set output file (for -o and -E) (optional space)\n"
+    "  -as=<gas|nasm>        Change code gen func to assembler (default is gas)\n"
     "  --help, --h           Show this help\n"
   );
   exit(status);
@@ -58,12 +60,8 @@ static bool take_arg(char *arg) {
   return false;
 }
 
-static void add_default_include_paths(char *argv0) {
-  // We expect that chibicc-specific include files are installed
-  // to ./include relative to argv[0].
-  strarray_push(&include_paths, format("%s/include", dirname(strdup(argv0))));
-
-  // Add standard include paths.
+static void add_default_include_paths() {
+  // Add standard include paths. (GNU/Linux)
   strarray_push(&include_paths, "/usr/local/include");
   strarray_push(&include_paths, "/usr/include/x86_64-linux-gnu");
   strarray_push(&include_paths, "/usr/include");
@@ -130,6 +128,16 @@ static void parse_args(int argc, char **argv) {
 
     if (!strncmp(argv[i], "-o", 2)) {
       output_file = argv[i] + 2;
+      continue;
+    }
+
+    if (!strncmp(argv[i], "-as=", 4)) {
+      if (!strcmp(argv[i] + 4, "gas"))
+        opt_as = AS_GAS;
+      else if (!strcmp(argv[i] + 4, "nasm"))
+        opt_as = AS_NASM;
+      else
+        error("unsupport assembler: \"%s\"", argv[i] + 4);
       continue;
     }
 
@@ -416,7 +424,10 @@ static void cc1(void) {
   FILE *output_buf = open_memstream(&buf, &buflen);
 
   // Traverse the AST to emit assembly.
-  codegen(prog, output_buf);
+  switch(opt_as) {
+  case AS_GAS:  codegen(prog, output_buf); break;
+  case AS_NASM: cdg_nasm(prog, output_buf); break;
+  }
   fclose(output_buf);
 
   // Write the asembly text to a file.
@@ -438,7 +449,7 @@ int main(int argc, char **argv) {
   init_macros();
   parse_args(argc, argv);
 
-  add_default_include_paths(argv[0]);
+  add_default_include_paths();
   cc1();
   return 0;
 }

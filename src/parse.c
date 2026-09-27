@@ -326,7 +326,12 @@ static Obj *new_gvar(char *name, Type *ty) {
 
 static char *new_unique_name(void) {
   static int id = 0;
-  return format(".L..%d", id++);
+  char c;
+  switch (opt_as) {
+  case AS_GAS:  c = '.'; break;
+  case AS_NASM: c = '?'; break;
+  }
+  return format("%cL..%d", c, id++);
 }
 
 static Obj *new_anon_gvar(Type *ty) {
